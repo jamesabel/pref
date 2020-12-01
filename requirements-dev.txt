@@ -1,0 +1,14 @@
+appdirs
+attrs
+sqlitedict
+#
+# dev
+wheel
+black
+pytest
+coverage
+pytest-cov
+pyship
+flake8
+pyqt5-tools
+twine
