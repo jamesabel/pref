@@ -17,11 +17,9 @@ class _PreferenceConstant(str):
     Values of type PreferenceConstant don't get written to the DB
     """
 
-    pass
-
 
 def _to_preferences_constant(s):
-    return _PreferenceConstant(str(s))
+    return _PreferenceConstant(s)
 
 
 @attrs
