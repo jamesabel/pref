@@ -26,6 +26,9 @@ def _to_preferences_constant(s):
 
 @attrs
 class PrefDict:
+    """
+    store/retrieve a set of attrs attributes to/from a sqlite database
+    """
 
     application_name = attrib(type=_PreferenceConstant, converter=_to_preferences_constant)
     application_author = attrib(type=_PreferenceConstant, converter=_to_preferences_constant)
@@ -49,7 +52,7 @@ class PrefDict:
 
 class PrefOrderedSet:
     """
-    store/retrieve a list of strings to/from a sqlite database
+    store/retrieve an ordered set of strings (like a list, but no duplicates) to/from a sqlite database
     """
 
     def __init__(self, name: str, author: str, table: str):
