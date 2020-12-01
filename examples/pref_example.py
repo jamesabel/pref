@@ -1,10 +1,3 @@
-# pref
-
-simple local preferences store
-
-# example
-
-```
 from attr import attrib, attrs
 from pref import PrefDict, PrefOrderedSet
 from ismain import is_main
@@ -29,4 +22,3 @@ if is_main():
 
     my_list = PrefOrderedSet(application_name, author, "mylist")
     print(my_list.get())  # ['a', 'b', 'c']
-```

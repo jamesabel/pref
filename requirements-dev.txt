@@ -3,6 +3,7 @@ attrs
 sqlitedict
 #
 # dev
+ismain
 wheel
 black
 pytest

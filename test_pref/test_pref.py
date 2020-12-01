@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from attr import attrib, attrs
-from pref import __author__, PrefDict, PrefList
+from pref import __author__, PrefDict, PrefOrderedSet
 
 from test_pref import __application_name__
 
@@ -19,7 +19,7 @@ def test_preferences():
     preferences = PrefTst(__application_name__, __author__)
     assert preferences.my_variable == my_value
 
-    exclusions = PrefList(__application_name__, __author__, "exclusions")
+    exclusions = PrefOrderedSet(__application_name__, __author__, "exclusions")
     test_list = ["a", "b", "a", "", "qwertyuiop", "c", 1]  # two "a"s, and an int 1
     expected_results = deepcopy(test_list)
     expected_results.pop(0)  # remove 1st "a"

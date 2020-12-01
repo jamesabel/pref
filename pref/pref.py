@@ -47,7 +47,7 @@ class PrefDict:
         return SqliteDict(get_sqlite_path(self.application_name, self.application_author), self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
 
 
-class PrefList:
+class PrefOrderedSet:
     """
     store/retrieve a list of strings to/from a sqlite database
     """
