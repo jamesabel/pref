@@ -46,7 +46,8 @@ class PrefDict:
         if not isinstance(value, _PreferenceConstant) and value is not None:
             # only write to the DB if data has changed
             sql_lite_dict = self.get_sqlite_dict()
-            if sql_lite_dict[key] != value:
+            existing_value = sql_lite_dict.get(key)
+            if existing_value is not None and existing_value != value:
                 sql_lite_dict[key] = value  # does the DB write
 
     def get_sqlite_dict(self) -> SqliteDict:
