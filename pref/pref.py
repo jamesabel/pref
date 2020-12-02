@@ -33,16 +33,21 @@ class PrefDict:
     table = attrib(default="preferences", type=_PreferenceConstant, converter=_to_preferences_constant)
 
     def __attrs_post_init__(self):
+        # initialize values from the DB for the derived class's attributes
         sqlite_dict = self.get_sqlite_dict()
         for key in self.__dict__:
             value = sqlite_dict.get(key)
             if value is not None and not isinstance(value, _PreferenceConstant):
-                self.__setattr__(key, value)
+                super().__setattr__(key, value)  # only call super since we don't have to worry about updating the DB here
 
     def __setattr__(self, key, value):
+        # update the DB for a (potentially) new value of a derived class's attribute
         super().__setattr__(key, value)
         if not isinstance(value, _PreferenceConstant) and value is not None:
-            self.get_sqlite_dict()[key] = value
+            # only write to the DB if data has changed
+            sql_lite_dict = self.get_sqlite_dict()
+            if sql_lite_dict[key] != value:
+                sql_lite_dict[key] = value  # does the DB write
 
     def get_sqlite_dict(self) -> SqliteDict:
         return SqliteDict(get_sqlite_path(self.application_name, self.application_author), self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
