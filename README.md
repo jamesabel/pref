@@ -14,26 +14,35 @@ from pref import PrefDict, PrefOrderedSet
 application_name = "myapp"
 author = "me"
 
+
 @attrs
 class MyPref(PrefDict):
     name = attrib(default=None)
 
 
+def get_pref() -> MyPref:
+    return MyPref(application_name, author)
+
+
+def get_ordered_set() -> PrefOrderedSet:
+    return PrefOrderedSet(application_name, author, "mylist")
+
+
 if is_main():
 
     # set a variable
-    preferences = MyPref(application_name, author)
+    preferences = get_pref()
     preferences.name = "me"
 
     # read it back
-    preferences = MyPref(application_name, author)
+    preferences = get_pref()
     print(preferences.name)  # me
 
     # set an ordered set (list-like, but no duplicates)
-    my_list = PrefOrderedSet(application_name, author, "mylist")
+    my_list = get_ordered_set()
     my_list.set(["a", "b", "c"])
 
     # read the ordered set back in
-    my_list = PrefOrderedSet(application_name, author, "mylist")
+    my_list = get_ordered_set()
     print(my_list.get())  # ['a', 'b', 'c']
 ```
