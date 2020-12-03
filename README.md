@@ -17,7 +17,8 @@ author = "me"
 
 @attrs
 class MyPref(PrefDict):
-    name = attrib(default=None)
+    first_name = attrib(default=None)
+    last_name = attrib(default=None)
 
 
 def get_pref() -> MyPref:
@@ -32,11 +33,13 @@ if is_main():
 
     # set a variable
     preferences = get_pref()
-    preferences.name = "me"
+    preferences.first_name = "James"
+    preferences.last_name = "Abel"
 
     # read it back
     preferences = get_pref()
-    print(preferences.name)  # me
+    print(preferences.first_name)  # James
+    print(preferences.last_name)  # Abel
 
     # set an ordered set (list-like, but no duplicates)
     my_list = get_ordered_set()
