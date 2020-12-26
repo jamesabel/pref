@@ -9,16 +9,17 @@ a local SQLite database file.
 from attr import attrib, attrs
 from ismain import is_main
 
-from pref import PrefDict, PrefOrderedSet
+from pref import Pref, PrefOrderedSet
 
 application_name = "myapp"
 author = "me"
 
 
 @attrs
-class MyPref(PrefDict):
-    first_name = attrib(default=None)
-    last_name = attrib(default=None)
+class MyPref(Pref):
+    first_name: str = attrib(default=None)
+    last_name: str = attrib(default=None)
+    has_subscription: bool = attrib(default=False)  # start off with no subscription
 
 
 def get_pref() -> MyPref:
@@ -40,6 +41,7 @@ if is_main():
     preferences = get_pref()
     print(preferences.first_name)  # James
     print(preferences.last_name)  # Abel
+    print(preferences.has_subscription)  # evaluates as False (is actually int of 0)
 
     # set an ordered set (list-like, but no duplicates)
     my_list = get_ordered_set()

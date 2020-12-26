@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import List
+import warnings
 
 import appdirs
 from sqlitedict import SqliteDict
@@ -23,9 +24,9 @@ def _to_preferences_constant(s):
 
 
 @attrs
-class PrefDict:
+class Pref:
     """
-    store/retrieve a set of attrs attributes to/from a sqlite database
+    store/retrieve preferences as a set of attrs attributes to/from a sqlite database
     """
 
     application_name = attrib(type=_PreferenceConstant, converter=_to_preferences_constant)
@@ -52,6 +53,13 @@ class PrefDict:
 
     def get_sqlite_dict(self) -> SqliteDict:
         return SqliteDict(get_sqlite_path(self.application_name, self.application_author), self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
+
+
+# legacy
+class PrefDict(Pref):
+    def __attrs_post_init__(self):
+        warnings.warn("use Pref class instead of PrefDict", DeprecationWarning)
+        super().__attrs_post_init__()
 
 
 class PrefOrderedSet:

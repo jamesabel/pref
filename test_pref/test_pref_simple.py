@@ -1,18 +1,20 @@
 from copy import deepcopy
 
 from attr import attrib, attrs
-from pref import __author__, PrefDict, PrefOrderedSet
+from pref import __author__, Pref, PrefOrderedSet, get_sqlite_path
 
 from test_pref import __application_name__
 
 
 @attrs
-class PrefTst(PrefDict):
+class PrefTst(Pref):
     my_variable = attrib(default=None)
 
 
 def test_preferences():
+    assert not get_sqlite_path(__application_name__, __author__).exists()
     preferences = PrefTst(__application_name__, __author__)
+    assert get_sqlite_path(__application_name__, __author__).exists()
     my_value = "me"
     preferences.my_variable = my_value
 
