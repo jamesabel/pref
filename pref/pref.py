@@ -32,7 +32,7 @@ class Pref:
     application_name = attrib(type=_PreferenceConstant, converter=_to_preferences_constant)
     application_author = attrib(type=_PreferenceConstant, converter=_to_preferences_constant)
     table = attrib(default="preferences", type=_PreferenceConstant, converter=_to_preferences_constant)
-    init_done = False
+    __pref__init__done__ = False  # fairly unique, reserved key
 
     def __attrs_post_init__(self):
         # initialize values from the DB for the derived class's attributes
@@ -41,12 +41,12 @@ class Pref:
             value = sqlite_dict.get(key)
             if value is not None and not isinstance(value, _PreferenceConstant):
                 super().__setattr__(key, value)  # only call super since we don't have to worry about updating the DB here
-        self.init_done = True
+        self.__pref__init__done__ = True  # gets written to the database
 
     def __setattr__(self, key, value):
         # update the DB for a (potentially) new value of a derived class's attribute
         super().__setattr__(key, value)
-        if self.init_done and not isinstance(value, _PreferenceConstant) and value is not None:
+        if self.__pref__init__done__ and not isinstance(value, _PreferenceConstant) and value is not None:
             # only write to the DB if data has changed
             sql_lite_dict = self.get_sqlite_dict()
             existing_value = sql_lite_dict.get(key)
