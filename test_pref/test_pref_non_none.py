@@ -35,3 +35,4 @@ def test_preferences():
     # now make sure what we wrote out is still in the DB
     preferences = PrefTst(__application_name__, __author__)
     assert not preferences.my_bool
+    assert preferences.my_str == my_new_string
