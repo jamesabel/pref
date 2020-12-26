@@ -31,3 +31,7 @@ def test_preferences():
 
     preferences.my_other_bool = False
     assert not preferences.my_other_bool
+
+    # now make sure what we wrote out is still in the DB
+    preferences = PrefTst(__application_name__, __author__)
+    assert not preferences.my_bool
