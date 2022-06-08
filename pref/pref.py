@@ -27,7 +27,7 @@ class _PreferenceMetaBool(_PreferenceMeta, int):
     ...
 
 
-def _to_preferences_meta_str(s):
+def _to_preferences_meta_str(s: str):
     return _PreferenceMetaStr(s)
 
 
@@ -39,7 +39,7 @@ class Pref:
 
     application_name = attrib(type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
     application_author = attrib(type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
-    table = attrib(default="preferences", type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
+    table = attrib(default=_PreferenceMetaStr("preferences"), type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
     _pref_init = _PreferenceMetaBool(False)  # starts as a class variable, then set to True as a class instance variable once all initialization is complete
 
     def __attrs_post_init__(self):
