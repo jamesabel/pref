@@ -7,8 +7,12 @@ from sqlitedict import SqliteDict
 from attr import attrib, attrs
 
 
-def get_sqlite_path(name: str, author: str) -> Path:
-    sqlite_path = Path(appdirs.user_config_dir(name, author), f"{name}.db")
+def get_sqlite_path(name: str, author: str, file_name: str = "") -> Path:
+    assert len(name) > 0
+    assert len(author) > 0
+    if file_name is None or len(file_name) < 1:
+        file_name = f"{name}.db"
+    sqlite_path = Path(appdirs.user_config_dir(name, author), file_name)
     sqlite_path.parent.mkdir(parents=True, exist_ok=True)
     return sqlite_path
 
@@ -40,6 +44,7 @@ class Pref:
     application_name = attrib(type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
     application_author = attrib(type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
     table = attrib(default=_PreferenceMetaStr("preferences"), type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
+    file_name = attrib(default=_PreferenceMetaStr(""), type=_PreferenceMetaStr, converter=_to_preferences_meta_str)  # default of "" means use f"{application_name}.db"
     _pref_init = _PreferenceMetaBool(False)  # starts as a class variable, then set to True as a class instance variable once all initialization is complete
 
     def __attrs_post_init__(self):
@@ -63,7 +68,7 @@ class Pref:
 
     def get_sqlite_dict(self) -> SqliteDict:
         # override this method if you don't like this "pass through" encoding, or want a different sqlite file path, etc.
-        return SqliteDict(get_sqlite_path(self.application_name, self.application_author), self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
+        return SqliteDict(get_sqlite_path(self.application_name, self.application_author, self.file_name), self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
 
 
 # legacy
