@@ -12,7 +12,6 @@ class PrefTst(Pref):
 
 
 def test_preferences():
-
     sql_lite_path = get_sqlite_path(__application_name__, __author__)
     print(f"{sql_lite_path=}")
     assert not sql_lite_path.exists()  # pytest fixture deletes the sqlite file
