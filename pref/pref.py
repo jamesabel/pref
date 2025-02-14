@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import List
-import warnings
 
 import appdirs
 from sqlitedict import SqliteDict
@@ -27,7 +26,7 @@ def _to_preferences_meta_str(s: str):
 
 class SQLitePath:
 
-    def __init__(self, application_name: str, application_author: str, file_name: str):
+    def __init__(self, application_name: str, application_author: str, file_name: str | None):
         self.application_name = application_name
         self.application_author = application_author
         self.file_name = file_name
@@ -35,6 +34,7 @@ class SQLitePath:
     def get_sqlite_path(self) -> Path:
         if self.file_name is None or len(self.file_name) < 1:
             self.file_name = f"{self.application_name}.db"
+        assert "." in self.file_name, f'file_name must have a file extension (e.g., ".db"): "{self.file_name=}"'
         sqlite_path = Path(appdirs.user_config_dir(self.application_name, self.application_author), self.file_name)
         sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         return sqlite_path
@@ -65,15 +65,16 @@ class Pref(SQLitePath):
         # update the DB for a (potentially) new value of a derived class's attribute
         super().__setattr__(key, value)
         if self._pref_init and not isinstance(value, _PreferenceMeta):
-            # only write to the DB if data has changed
             sql_lite_dict = self.get_sqlite_dict()
             existing_value = sql_lite_dict.get(key)
+            # only write to the DB if data has changed
             if existing_value != value:
                 sql_lite_dict[key] = value  # does the DB write
 
     def get_sqlite_dict(self) -> SqliteDict:
         # override this method if you don't like this "pass through" encoding, or want a different sqlite file path, etc.
-        return SqliteDict(self.get_sqlite_path(), self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
+        sqlite_path = self.get_sqlite_path()
+        return SqliteDict(sqlite_path, self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
 
 
 class PrefOrderedSet(SQLitePath):
@@ -81,13 +82,20 @@ class PrefOrderedSet(SQLitePath):
     store/retrieve an ordered set of strings (like a list, but no duplicates) to/from a sqlite database
     """
 
-    def __init__(self, application_name: str, application_author: str, table: str, file_name: str = ""):
+    def __init__(self, application_name: str, application_author: str, table: str, file_name: str | None = None):
+        """
+        :param application_name: name of the application
+        :param application_author: name of the application author
+        :param table: name of the data group (used as the sqlite table)
+        :param file_name: optional name of the sqlite file
+        """
         super().__init__(application_name, application_author, file_name)
         # DB stores values directly (not encoded as a pickle)
         self.application_name = application_name
         self.application_author = application_author
         self.file_name = file_name
-        self.sqlite_dict = SqliteDict(self.get_sqlite_path(), table, encode=lambda x: x, decode=lambda x: x)
+        sqlite_path = self.get_sqlite_path()
+        self.sqlite_dict = SqliteDict(sqlite_path, table, encode=lambda x: x, decode=lambda x: x)
 
     def set(self, strings: list):
         """
