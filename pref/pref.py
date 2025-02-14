@@ -7,16 +7,6 @@ from sqlitedict import SqliteDict
 from attr import attrib, attrs
 
 
-def get_sqlite_path(name: str, author: str, file_name: str = "") -> Path:
-    assert len(name) > 0
-    assert len(author) > 0
-    if file_name is None or len(file_name) < 1:
-        file_name = f"{name}.db"
-    sqlite_path = Path(appdirs.user_config_dir(name, author), file_name)
-    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite_path
-
-
 class _PreferenceMeta:
     """
     Values of type _PreferenceMeta (or derived classes) don't get written to the DB
@@ -24,19 +14,34 @@ class _PreferenceMeta:
 
 
 class _PreferenceMetaStr(_PreferenceMeta, str):
-    ...
+    pass
 
 
 class _PreferenceMetaBool(_PreferenceMeta, int):
-    ...
+    pass
 
 
 def _to_preferences_meta_str(s: str):
     return _PreferenceMetaStr(s)
 
 
+class SQLitePath:
+
+    def __init__(self, application_name: str, application_author: str, file_name: str):
+        self.application_name = application_name
+        self.application_author = application_author
+        self.file_name = file_name
+
+    def get_sqlite_path(self) -> Path:
+        if self.file_name is None or len(self.file_name) < 1:
+            self.file_name = f"{self.application_name}.db"
+        sqlite_path = Path(appdirs.user_config_dir(self.application_name, self.application_author), self.file_name)
+        sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+        return sqlite_path
+
+
 @attrs
-class Pref:
+class Pref(SQLitePath):
     """
     store/retrieve preferences as a set of attrs attributes to/from a sqlite database
     """
@@ -68,24 +73,21 @@ class Pref:
 
     def get_sqlite_dict(self) -> SqliteDict:
         # override this method if you don't like this "pass through" encoding, or want a different sqlite file path, etc.
-        return SqliteDict(get_sqlite_path(self.application_name, self.application_author, self.file_name), self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
+        return SqliteDict(self.get_sqlite_path(), self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
 
 
-# legacy
-class PrefDict(Pref):
-    def __attrs_post_init__(self):
-        warnings.warn("use Pref class instead of PrefDict", DeprecationWarning)
-        super().__attrs_post_init__()
-
-
-class PrefOrderedSet:
+class PrefOrderedSet(SQLitePath):
     """
     store/retrieve an ordered set of strings (like a list, but no duplicates) to/from a sqlite database
     """
 
-    def __init__(self, name: str, author: str, table: str):
+    def __init__(self, application_name: str, application_author: str, table: str, file_name: str = ""):
+        super().__init__(application_name, application_author, file_name)
         # DB stores values directly (not encoded as a pickle)
-        self.sqlite_dict = SqliteDict(get_sqlite_path(name, author), table, encode=lambda x: x, decode=lambda x: x)
+        self.application_name = application_name
+        self.application_author = application_author
+        self.file_name = file_name
+        self.sqlite_dict = SqliteDict(self.get_sqlite_path(), table, encode=lambda x: x, decode=lambda x: x)
 
     def set(self, strings: list):
         """
