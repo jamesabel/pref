@@ -1,2 +1,18 @@
-[project]
 name = "pref"
+version = "0.3.0"
+authors = ["abel"]
+description = "persistent preferences store to local sqlite"
+readme = "README.md"
+license = { file = "LICENSE.txt" }
+homepage = "https://github.com/jamesabel/pref"
+repository = "https://github.com/jamesabel/pref"
+keywords = ["preferences", "sqlite", "persistent"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
