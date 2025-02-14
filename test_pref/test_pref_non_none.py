@@ -1,6 +1,6 @@
 from attr import attrib, attrs
 
-from pref import __author__, Pref, get_sqlite_path
+from pref import __author__, Pref
 
 from test_pref import __application_name__
 
@@ -12,11 +12,11 @@ my_new_string = "I am new"
 class PrefTst(Pref):
     my_bool: bool = attrib(default=True)
     my_other_bool: bool = attrib(default=False)
-    my_str: bool = attrib(default=my_default_string)
+    my_str: str = attrib(default=my_default_string)
 
 
 def test_preferences():
-    assert not get_sqlite_path(__application_name__, __author__).exists()  # check that the testing framework starts without at DB file
+
     preferences = PrefTst(__application_name__, __author__)
 
     assert preferences.my_bool
@@ -32,7 +32,7 @@ def test_preferences():
     preferences.my_other_bool = False  # same value as default - should not even write to DB
     assert not preferences.my_other_bool
 
-    # now make sure what we wrote out is still in the DB
+    # now make sure what we wrote is still in the DB
     preferences = PrefTst(__application_name__, __author__)
     assert not preferences.my_bool
     assert not preferences.my_other_bool

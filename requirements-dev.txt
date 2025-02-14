@@ -7,10 +7,8 @@ ismain
 wheel
 black
 pytest
-coverage
 pytest-cov
 pytest-pycharm
-pyship
 flake8
 twine
 mypy

@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from attr import attrib, attrs
-from pref import __author__, Pref, PrefOrderedSet, get_sqlite_path
+from pref import __author__, Pref, PrefOrderedSet
 
 from test_pref import __application_name__
 
@@ -12,12 +12,9 @@ class PrefTst(Pref):
 
 
 def test_preferences():
-    sql_lite_path = get_sqlite_path(__application_name__, __author__)
-    print(f"{sql_lite_path=}")
-    assert not sql_lite_path.exists()  # pytest fixture deletes the sqlite file
 
     preferences = PrefTst(__application_name__, __author__)
-    assert get_sqlite_path(__application_name__, __author__).exists()
+    assert preferences.get_sqlite_path().exists()
     my_value = "me"
     preferences.my_variable = my_value
 
