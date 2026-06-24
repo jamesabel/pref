@@ -1,9 +1,13 @@
+import sqlite3
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import appdirs
 from sqlitedict import SqliteDict
 from attr import attrib, attrs
+
+# sentinel used to distinguish "caller passed no default" from "caller passed default=None"
+_UNSET = object()
 
 
 class _PreferenceMeta:
@@ -20,7 +24,11 @@ class _PreferenceMetaBool(_PreferenceMeta, int):
     pass
 
 
-def _to_preferences_meta_str(s: str):
+def _to_preferences_meta_str(s):
+    # None/falsy maps to "" so that the get_sqlite_path() default-file-name logic kicks in
+    # (without this, a None file_name would be converted to the literal string "None")
+    if s is None:
+        s = ""
     return _PreferenceMetaStr(s)
 
 
@@ -39,6 +47,21 @@ class SQLitePath:
         sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         return sqlite_path
 
+    def tables(self) -> List[str]:
+        """
+        :return: the list of table names present in this store's sqlite file
+        """
+        # Note: we deliberately do NOT use SqliteDict.get_tablenames() here. That helper opens a
+        # `with sqlite3.connect(...)` which commits but never closes the connection, leaking a file
+        # handle that blocks deleting the DB on Windows. We open and close the connection ourselves.
+        sqlite_path = self.get_sqlite_path()
+        conn = sqlite3.connect(sqlite_path)
+        try:
+            rows = conn.execute('SELECT name FROM sqlite_master WHERE type="table"').fetchall()
+        finally:
+            conn.close()
+        return [row[0] for row in rows]
+
 
 @attrs
 class Pref(SQLitePath):
@@ -49,7 +72,7 @@ class Pref(SQLitePath):
     application_name = attrib(type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
     application_author = attrib(type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
     table = attrib(default=_PreferenceMetaStr("preferences"), type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
-    file_name = attrib(default=_PreferenceMetaStr(""), type=_PreferenceMetaStr, converter=_to_preferences_meta_str)  # default of "" means use f"{application_name}.db"
+    file_name = attrib(default=None, type=_PreferenceMetaStr, converter=_to_preferences_meta_str)  # default of None/"" means use f"{application_name}.db"
     _pref_init = _PreferenceMetaBool(False)  # starts as a class variable, then set to True as a class instance variable once all initialization is complete
 
     def __attrs_post_init__(self):
@@ -76,6 +99,25 @@ class Pref(SQLitePath):
         sqlite_path = self.get_sqlite_path()
         return SqliteDict(sqlite_path, self.table, autocommit=True, encode=lambda x: x, decode=lambda x: x)
 
+    def reset(self) -> None:
+        """
+        Delete this preference group's table so attributes fall back to their defaults.
+        """
+        sqlite_dict = self.get_sqlite_dict()
+        sqlite_dict.clear()
+        sqlite_dict.commit()
+
+    def close(self) -> None:
+        # Pref opens a fresh autocommit handle per access (see get_sqlite_dict), so there is no
+        # long-lived handle to close. Provided for symmetry with PrefOrderedSet / context-manager use.
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
 
 class PrefOrderedSet(SQLitePath):
     """
@@ -93,9 +135,23 @@ class PrefOrderedSet(SQLitePath):
         # DB stores values directly (not encoded as a pickle)
         self.application_name = application_name
         self.application_author = application_author
+        self.table = table
         self.file_name = file_name
         sqlite_path = self.get_sqlite_path()
         self.sqlite_dict = SqliteDict(sqlite_path, table, encode=lambda x: x, decode=lambda x: x)
+        # companion meta table records whether this set has ever been written, so callers can
+        # tell "never set" apart from "set to empty" (the value table is empty in both cases)
+        self._meta = SqliteDict(sqlite_path, f"{table}__meta", encode=lambda x: x, decode=lambda x: x)
+
+    def _mark_configured(self):
+        self._meta["configured"] = 1
+        self._meta.commit()
+
+    def exists(self) -> bool:
+        """
+        :return: True if this set was ever written (via set()/add()), even if it was set to empty
+        """
+        return self._meta.get("configured") is not None
 
     def set(self, strings: list):
         """
@@ -107,10 +163,81 @@ class PrefOrderedSet(SQLitePath):
         for index, string in enumerate(strings):
             self.sqlite_dict[string] = index
         self.sqlite_dict.commit()  # not using autocommit since we're updating (setting) multiple values in the above for loop
+        self._mark_configured()
 
-    def get(self) -> List[str]:
+    def get(self, default=_UNSET) -> List[str]:
         """
         returns the list of strings
-        :return: list of strings
+        :param default: value to return if this set was never written (only used when explicitly passed)
+        :return: list of strings, or `default` if never written and `default` was provided
         """
+        if not self.exists() and default is not _UNSET:
+            return default
         return list(sorted(self.sqlite_dict, key=self.sqlite_dict.get))
+
+    def add(self, s: str) -> None:
+        """
+        add a single string to the set (no-op if already present); preserves insertion order
+        """
+        if s not in self.sqlite_dict:
+            self.sqlite_dict[s] = len(self.sqlite_dict)  # append at end
+            self.sqlite_dict.commit()
+        self._mark_configured()
+
+    def discard(self, s: str) -> None:
+        """
+        remove a single string from the set (no-op if not present)
+        """
+        if s in self.sqlite_dict:
+            del self.sqlite_dict[s]  # index gaps are fine; get() sorts by the stored index
+            self.sqlite_dict.commit()
+
+    def clear(self) -> None:
+        """
+        remove all strings and reset this set to the "never written" state (exists() becomes False)
+        """
+        self.sqlite_dict.clear()
+        self.sqlite_dict.commit()
+        self._meta.clear()
+        self._meta.commit()
+
+    def close(self) -> None:
+        self.sqlite_dict.close()
+        self._meta.close()
+
+    def __contains__(self, s: str) -> bool:
+        return s in self.sqlite_dict
+
+    def __len__(self) -> int:
+        return len(self.sqlite_dict)
+
+    def __iter__(self):
+        return iter(self.get())
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+
+class PrefStore:
+    """
+    factory that holds the application identity once so PrefOrderedSet / Pref instances
+    can be created without repeating (application_name, application_author, file_name)
+    """
+
+    def __init__(self, application_name: str, application_author: str, file_name: Optional[str] = None):
+        self.application_name = application_name
+        self.application_author = application_author
+        self.file_name = file_name
+
+    def ordered_set(self, table: str) -> PrefOrderedSet:
+        return PrefOrderedSet(self.application_name, self.application_author, table, self.file_name)
+
+    def bind(self, pref_cls):
+        """
+        construct a Pref subclass bound to this store's identity
+        :param pref_cls: a Pref subclass
+        """
+        return pref_cls(self.application_name, self.application_author, file_name=self.file_name or "")
