@@ -1,6 +1,6 @@
 [project]
 name = "pref"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["abel"]
 description = "persistent preferences store to local sqlite"
 readme = "README.md"
