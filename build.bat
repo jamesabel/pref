@@ -1,9 +1,6 @@
-rmdir /S /Q pref.egg-info
-rmdir /S /Q build
-rmdir /S /Q dist
-copy /Y LICENSE LICENSE.txt
+rmdir /S /Q dist 2>nul
+rmdir /S /Q build 2>nul
+rmdir /S /Q pref.egg-info 2>nul
 call venv\Scripts\activate.bat
-python.exe setup.py bdist_wheel
-rmdir /S /Q pref.egg-info
-rmdir /S /Q build
+python -m build
 call deactivate

@@ -20,15 +20,15 @@ The dev workflow assumes a `venv/` created by the scripts below (the `.bat` file
 hardcode `venv\Scripts\...` and activate it). On non-Windows shells, replicate the
 single relevant command rather than running the batch file.
 
-- Create the dev venv: `scripts\make_venv_dev.bat` (uses Python 3.13, installs `requirements-dev.txt`)
+- Create the dev venv: `scripts\make_venv_dev.bat` (uses Python 3.14, installs `requirements-dev.txt`)
 - Run tests: `venv\Scripts\pytest.exe` (set `PYTHONPATH=%CD%` first, as `scripts\coverage.bat` does)
 - Run a single test: `venv\Scripts\pytest.exe test_pref/test_pref_simple.py::test_preferences`
 - Coverage (HTML + XML): `scripts\coverage.bat`
 - Format: `scripts\blackify.bat` — **black with line length 192** (`-l 192`)
 - Lint: `run_flake8.bat` (ignores E402, F401, W503, E203, E501; output to `doc\flake8_report.txt`)
 - Type check: `scripts\run_mypy.bat`
-- Build wheel: `build.bat`
-- Publish to PyPI: `scripts\pypi.bat`
+- Build sdist + wheel: `build.bat` (runs `python -m build`)
+- Publish to PyPI: `scripts\pypi.bat` (builds, `twine check`, then `twine upload`)
 
 ## Architecture notes
 
@@ -61,8 +61,10 @@ The non-obvious parts live in `pref/pref.py`:
   (asserted). Tests in `test_pref/conftest.py` delete this directory between runs via an
   autouse fixture — be aware test runs wipe the `test_pref` app config dir.
 
-## Version
+## Packaging / version
 
-Project metadata lives in `pref/__version__.py` and is consumed by `setup.py`.
-Note `pyproject.toml` carries its own `version` field that can drift from
-`__version__.py` — update both when releasing.
+Packaging is fully declarative in `pyproject.toml` (PEP 621 + PEP 639, setuptools
+backend); there is no `setup.py`. The version is **single-sourced** from
+`pref/__version__.py` via `[tool.setuptools.dynamic]` (`version = {attr = ...}`), so
+bump it there only — `pyproject.toml` has no hardcoded version. `__version__.py` also
+holds the other metadata constants still imported at runtime by `pref/__init__.py`.

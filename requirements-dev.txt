@@ -4,7 +4,7 @@ sqlitedict
 #
 # dev
 ismain
-wheel
+build
 black
 pytest
 pytest-cov
