@@ -133,7 +133,7 @@ class Pref(SQLitePath):
             return value
         if field.converter is not None:
             # attrs >= 24.1 may wrap the callable in a Converter object
-            convert = getattr(field.converter, "converter", field.converter)
+            convert: Any = getattr(field.converter, "converter", field.converter)
             value = convert(value)
         if field.validator is not None:
             field.validator(self, field, value)
