@@ -22,7 +22,7 @@ classifiers = [
 dependencies = [
     "sqlitedict",
     "attrs",
-    "appdirs",
+    "platformdirs",
 ]
 dynamic = ["version"]
 

@@ -1,10 +1,15 @@
+import logging
 import sqlite3
+import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional, Union
 
-import appdirs
+import attr
+from platformdirs import user_config_dir
 from sqlitedict import SqliteDict
 from attr import attrib, attrs
+
+log = logging.getLogger(__name__)
 
 # sentinel used to distinguish "caller passed no default" from "caller passed default=None"
 _UNSET = object()
@@ -32,18 +37,45 @@ def _to_preferences_meta_str(s):
     return _PreferenceMetaStr(s)
 
 
+def default_config_dir(application_name: str, application_author: str) -> Path:
+    """
+    The per-user config directory for this application (``platformdirs.user_config_dir``).
+
+    On macOS, ``platformdirs`` places it under ``~/Library/Application Support`` while pref
+    up to 0.4 (via ``appdirs``) used ``~/Library/Preferences``; a directory that already exists
+    at the old location keeps being used so existing preferences are not lost.
+    """
+    current = Path(user_config_dir(application_name, application_author))
+    if sys.platform == "darwin" and not current.exists():
+        legacy = Path.home() / "Library" / "Preferences" / application_name
+        if legacy.exists():
+            return legacy
+    return current
+
+
 class SQLitePath:
 
-    def __init__(self, application_name: str, application_author: str, file_name: str | None):
+    def __init__(self, application_name: str, application_author: str, file_name: str | None, config_dir: Union[Path, str, None] = None):
+        """
+        :param application_name: name of the application
+        :param application_author: name of the application author
+        :param file_name: optional name of the sqlite file (default: ``{application_name}.db``)
+        :param config_dir: optional directory for the sqlite file; default is the per-user config directory
+        """
         self.application_name = application_name
         self.application_author = application_author
         self.file_name = file_name
+        self.config_dir = config_dir
 
     def get_sqlite_path(self) -> Path:
         if self.file_name is None or len(self.file_name) < 1:
             self.file_name = f"{self.application_name}.db"
         assert "." in self.file_name, f'file_name must have a file extension (e.g., ".db"): "{self.file_name=}"'
-        sqlite_path = Path(appdirs.user_config_dir(self.application_name, self.application_author), self.file_name)
+        if self.config_dir is not None and str(self.config_dir) != "":
+            directory = Path(self.config_dir)
+        else:
+            directory = default_config_dir(self.application_name, self.application_author)
+        sqlite_path = directory / self.file_name
         sqlite_path.parent.mkdir(parents=True, exist_ok=True)
         return sqlite_path
 
@@ -73,19 +105,45 @@ class Pref(SQLitePath):
     application_author = attrib(type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
     table = attrib(default=_PreferenceMetaStr("preferences"), type=_PreferenceMetaStr, converter=_to_preferences_meta_str)
     file_name = attrib(default=None, type=_PreferenceMetaStr, converter=_to_preferences_meta_str)  # default of None/"" means use f"{application_name}.db"
+    config_dir = attrib(default=None, type=_PreferenceMetaStr, converter=_to_preferences_meta_str)  # default of None/"" means the per-user config directory
     _pref_init = _PreferenceMetaBool(False)  # starts as a class variable, then set to True as a class instance variable once all initialization is complete
 
     def __attrs_post_init__(self):
-        # initialize values from the DB for the derived class's attributes
+        # initialize values from the DB for the derived class's attributes; a stored value that no
+        # longer passes the attribute's converter/validator is dropped in favour of the default
         sqlite_dict = self.get_sqlite_dict()
-        for key in self.__dict__:
+        for key in list(self.__dict__):
             value = sqlite_dict.get(key)
             if value is not None and not isinstance(value, _PreferenceMeta):
+                try:
+                    value = self._checked(key, value)
+                except (TypeError, ValueError) as e:
+                    log.warning(f"stored preference {key}={value!r} rejected ({e}); using the default")
+                    continue
                 super().__setattr__(key, value)  # only call super since we don't have to worry about updating the DB here
         self._pref_init = _PreferenceMetaBool(True)  # now a class instance variable (no longer a class variable)
 
+    def _checked(self, key: str, value: Any) -> Any:
+        """
+        Run the attrs ``converter`` and ``validator`` declared for ``key`` (if any) against ``value``.
+        attrs only applies them at construction; pref applies them on every set and on every load.
+        """
+        field = attr.fields_dict(type(self)).get(key)
+        if field is None:
+            return value
+        if field.converter is not None:
+            # attrs >= 24.1 may wrap the callable in a Converter object
+            convert: Any = getattr(field.converter, "converter", field.converter)
+            value = convert(value)
+        if field.validator is not None:
+            field.validator(self, field, value)
+        return value
+
     def __setattr__(self, key, value):
-        # update the DB for a (potentially) new value of a derived class's attribute
+        # update the DB for a (potentially) new value of a derived class's attribute; the attribute's
+        # converter/validator run first, so a rejected value is neither set nor persisted
+        if self._pref_init and not isinstance(value, _PreferenceMeta):
+            value = self._checked(key, value)
         super().__setattr__(key, value)
         if self._pref_init and not isinstance(value, _PreferenceMeta):
             sql_lite_dict = self.get_sqlite_dict()
@@ -124,14 +182,15 @@ class PrefOrderedSet(SQLitePath):
     store/retrieve an ordered set of strings (like a list, but no duplicates) to/from a sqlite database
     """
 
-    def __init__(self, application_name: str, application_author: str, table: str, file_name: str | None = None):
+    def __init__(self, application_name: str, application_author: str, table: str, file_name: str | None = None, config_dir: Union[Path, str, None] = None):
         """
         :param application_name: name of the application
         :param application_author: name of the application author
         :param table: name of the data group (used as the sqlite table)
         :param file_name: optional name of the sqlite file
+        :param config_dir: optional directory for the sqlite file; default is the per-user config directory
         """
-        super().__init__(application_name, application_author, file_name)
+        super().__init__(application_name, application_author, file_name, config_dir)
         # DB stores values directly (not encoded as a pickle)
         self.application_name = application_name
         self.application_author = application_author
@@ -227,17 +286,18 @@ class PrefStore:
     can be created without repeating (application_name, application_author, file_name)
     """
 
-    def __init__(self, application_name: str, application_author: str, file_name: Optional[str] = None):
+    def __init__(self, application_name: str, application_author: str, file_name: Optional[str] = None, config_dir: Union[Path, str, None] = None):
         self.application_name = application_name
         self.application_author = application_author
         self.file_name = file_name
+        self.config_dir = config_dir
 
     def ordered_set(self, table: str) -> PrefOrderedSet:
-        return PrefOrderedSet(self.application_name, self.application_author, table, self.file_name)
+        return PrefOrderedSet(self.application_name, self.application_author, table, self.file_name, self.config_dir)
 
     def bind(self, pref_cls):
         """
         construct a Pref subclass bound to this store's identity
         :param pref_cls: a Pref subclass
         """
-        return pref_cls(self.application_name, self.application_author, file_name=self.file_name or "")
+        return pref_cls(self.application_name, self.application_author, file_name=self.file_name or "", config_dir=self.config_dir)
