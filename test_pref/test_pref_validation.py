@@ -1,3 +1,7 @@
+"""
+All tests in this module are AI-generated (Claude Code); the helper class is covered by that note.
+"""
+
 import logging
 from pathlib import Path
 
@@ -17,6 +21,7 @@ class Bounded(Pref):
     name: str = attrib(default="", converter=str)
 
 
+# AI-GENERATED TEST (Claude Code) - delete this line to make this test human-owned.
 def test_converter_and_validator_run_on_set(tmp_path: Path):
     preferences = Bounded(__application_name__, __author__, config_dir=tmp_path)
     preferences.poll_seconds = "3"  # converted before validation and storage
@@ -29,6 +34,7 @@ def test_converter_and_validator_run_on_set(tmp_path: Path):
     assert Bounded(__application_name__, __author__, config_dir=tmp_path).name == "42"
 
 
+# AI-GENERATED TEST (Claude Code) - delete this line to make this test human-owned.
 def test_stored_value_that_no_longer_validates_falls_back_to_the_default(tmp_path: Path, caplog):
     preferences = Bounded(__application_name__, __author__, config_dir=tmp_path)
     preferences.poll_seconds = 4.0
