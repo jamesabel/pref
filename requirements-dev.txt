@@ -1,4 +1,4 @@
-appdirs
+platformdirs
 attrs
 sqlitedict
 #
@@ -12,4 +12,3 @@ pytest-pycharm
 flake8
 twine
 mypy
-appdirs-stubs

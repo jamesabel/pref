@@ -1,5 +1,24 @@
 # pref - a simple local preferences store
 
+Since 0.5:
+
+- **Where the file lives.** By default the per-user config directory from `platformdirs`
+  (e.g. `%LOCALAPPDATA%\\author\\myapp` on Windows, `~/.config/myapp` on Linux). Pass
+  `config_dir=` to `Pref`, `PrefOrderedSet` or `PrefStore` to put it anywhere else, such as
+  beside an application's own data files. On macOS a directory left by pref 0.4 under
+  `~/Library/Preferences` keeps being used.
+- **Validation and conversion.** An attribute's `attrs` `converter` and `validator` run on every
+  set and on every load, not only at construction: a rejected value raises on set and is
+  neither stored nor kept, and a stored value that no longer validates (a hand-edited file,
+  an older version's range) falls back to the default with a warning.
+
+```
+@attrs
+class MyPref(Pref):
+    poll_seconds: float = attrib(default=2.0, converter=float, validator=attr.validators.ge(0.5))
+```
+
+
 Persistent storage of `attrs` attributes or an ordered set (like a list, but no duplicates) to 
 a local SQLite database file. 
 
