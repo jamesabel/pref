@@ -28,7 +28,7 @@ single relevant command rather than running the batch file.
 - Lint: `run_flake8.bat` (ignores E402, F401, W503, E203, E501; output to `doc\flake8_report.txt`)
 - Type check: `scripts\run_mypy.bat`
 - Build sdist + wheel: `build.bat` (runs `python -m build`)
-- Publish to PyPI: `scripts\pypi.bat` (builds, `twine check`, then `twine upload`)
+- Publish to PyPI: publish a GitHub release (or run the `Publish to PyPI` workflow); `.github/workflows/publish.yml` builds and uploads with Provenance through a PyPI trusted publisher. Never upload from a workstation, which cannot produce Provenance.
 
 ## Architecture notes
 
